@@ -41,20 +41,20 @@ npx vercel deploy --prod --yes
 
 ## 推送到 GitHub
 
-在**本目录**初始化并提交（若尚未执行）：
+本目录**已初始化 Git** 并完成首次提交，默认分支为 `main`。若你尚未配置全局 Git 用户名与邮箱，可在本仓库内设置（与 GitHub 账号一致，或使用 GitHub 提供的 `noreply` 邮箱）：
 
 ```bash
-git init
-git add .
-git commit -m "Initial commit: 松鹤·智语静态站"
+git config user.name "你的名字"
+git config user.email "你的邮箱"
 ```
 
 关联你已创建的远程仓库并推送（将 URL 换成你的仓库地址）：
 
 ```bash
 git remote add origin https://github.com/<你的用户名>/<仓库名>.git
-git branch -M main
 git push -u origin main
 ```
+
+若远程仓库已有 README 等初始提交，可先 `git pull origin main --allow-unrelated-histories` 合并再推送。
 
 说明：`node_modules` 与 `.vercel` 已在 `.gitignore` 中忽略；克隆后请执行 `npm install` 再改样式并 `npm run build:css`。
