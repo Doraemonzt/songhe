@@ -1,6 +1,0 @@
-# Netlify 可选配置（拖拽部署时也会生效）
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Frame-Options = "DENY"
-    X-Content-Type-Options = "nosniff"
