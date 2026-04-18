@@ -1,0 +1,1993 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no"
+    />
+    <meta name="theme-color" content="#1A365D" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>松鹤·智语</title>
+    <!-- 样式为预构建 Tailwind（songhe-online 目录下执行 npm run build:css 生成），避免依赖境外 Tailwind Play CDN -->
+    <link rel="stylesheet" href="./songhe-built.css" />
+    <!-- Vue 生态使用国内 BootCDN，便于无 VPN 访问 -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/vue/3.5.13/vue.global.prod.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/vue-router/4.5.0/vue-router.global.prod.min.js"></script>
+    <style>
+      html {
+        height: 100%;
+        overflow: hidden;
+        font-size: 18px;
+        line-height: 1.75;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-text-size-adjust: 100%;
+      }
+      body {
+        margin: 0;
+        height: 100%;
+        max-height: 100vh;
+        max-height: 100dvh;
+        overflow: hidden;
+        touch-action: manipulation;
+        background: rgb(226 232 240 / 0.8);
+        color: #1a202c;
+      }
+      #app {
+        height: 100vh;
+        height: 100dvh;
+        max-height: 100vh;
+        max-height: 100dvh;
+        overflow: hidden;
+      }
+      @keyframes mic-ripple {
+        0% {
+          transform: scale(1);
+          opacity: 0.45;
+        }
+        100% {
+          transform: scale(2.4);
+          opacity: 0;
+        }
+      }
+      .mic-ripple-ring {
+        animation: mic-ripple 2s ease-out infinite;
+      }
+      .page-enter-active,
+      .page-leave-active {
+        transition:
+          opacity 0.32s ease,
+          transform 0.32s ease;
+      }
+      .page-enter-from {
+        opacity: 0;
+        transform: translateX(12px);
+      }
+      .page-leave-to {
+        opacity: 0;
+        transform: translateX(-10px);
+      }
+      /* 微信对话区：隐藏滚动条但可滚动 */
+      .wx-chat-scroll {
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+      }
+      .wx-chat-scroll::-webkit-scrollbar {
+        display: none;
+      }
+      /* 语音播报面板：波形动画 */
+      @keyframes voice-wave-h {
+        0%,
+        100% {
+          height: 6px;
+          opacity: 0.55;
+        }
+        50% {
+          height: 28px;
+          opacity: 1;
+        }
+      }
+      .voice-wave-bar {
+        width: 5px;
+        border-radius: 9999px;
+        background: #1a365d;
+        height: 6px;
+        align-self: flex-end;
+        animation: voice-wave-h 0.55s ease-in-out infinite;
+      }
+      .voice-wave-bar:nth-child(2) {
+        animation-delay: 0.1s;
+      }
+      .voice-wave-bar:nth-child(3) {
+        animation-delay: 0.2s;
+      }
+      .voice-wave-bar:nth-child(4) {
+        animation-delay: 0.15s;
+      }
+      .voice-wave-bar:nth-child(5) {
+        animation-delay: 0.25s;
+      }
+      .voice-wave-bar:nth-child(6) {
+        animation-delay: 0.05s;
+      }
+      .voice-wave-bar:nth-child(7) {
+        animation-delay: 0.2s;
+      }
+      /* 海报弹层：示意二维码格子 */
+      .poster-fake-qr {
+        background-color: #fff;
+        background-image: linear-gradient(#111 1px, transparent 1px),
+          linear-gradient(90deg, #111 1px, transparent 1px);
+        background-size: 6px 6px;
+        image-rendering: pixelated;
+      }
+      /* 海报挂载点：与 #app 平级，避免手机壳内 transform/overflow 影响层叠 */
+      #poster-root {
+        position: fixed !important;
+        inset: 0 !important;
+        left: 0 !important;
+        top: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100vw !important;
+        max-width: 100vw !important;
+        height: 100vh !important;
+        height: 100dvh !important;
+        max-height: 100dvh !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        z-index: 2147483000 !important;
+        isolation: isolate !important;
+        pointer-events: none !important;
+        box-sizing: border-box !important;
+      }
+      #poster-root > * {
+        pointer-events: auto !important;
+      }
+      .poster-layer-inner {
+        position: absolute !important;
+        inset: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        max-height: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+        margin: 0 !important;
+        box-sizing: border-box !important;
+      }
+      /* 海报全屏底：内联样式，不依赖 Tailwind 是否扫描到 JS 里的 class */
+      .poster-page-bg {
+        background-color: #faf6f0 !important;
+        background-image: linear-gradient(180deg, #f0e6d8 0%, #faf6f0 42%, #ebe0d0 100%) !important;
+      }
+      .poster-bar-solid {
+        background-color: #faf6f0 !important;
+      }
+      .poster-illus-bg {
+        background: linear-gradient(180deg, #f5e6c8 0%, #fff9f0 100%) !important;
+      }
+      .poster-illus-frame {
+        background: linear-gradient(180deg, #edd9b8 0%, #fff5e8 100%) !important;
+      }
+      .poster-btn-save {
+        background-color: #07c160 !important;
+        color: #fff !important;
+        border: none !important;
+      }
+      .poster-btn-save:active {
+        background-color: #06ad56 !important;
+      }
+      /* 内联 style 负责常态底色（压过 Tailwind preflight 的 button 透明底） */
+      #poster-root button.poster-share-btn:active {
+        background-color: #0ea5e9 !important;
+      }
+      .poster-footer-btns {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 18px !important;
+        align-items: stretch !important;
+      }
+      .poster-footer-btns > button {
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+      }
+      .poster-logo-img {
+        display: block !important;
+        max-width: min(92vw, 260px) !important;
+        max-height: 11rem !important;
+        width: auto !important;
+        height: auto !important;
+        object-fit: contain !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+      }
+      .chat-avatar-logo {
+        display: block !important;
+        width: 2.5rem !important;
+        height: 2.5rem !important;
+        flex-shrink: 0 !important;
+        object-fit: contain !important;
+        background: #fff !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+      }
+      .script-answer-illus {
+        display: block !important;
+        max-height: min(48vh, 300px) !important;
+        width: 100% !important;
+        object-fit: contain !important;
+        box-sizing: border-box !important;
+      }
+      html.poster-scroll-lock,
+      body.poster-scroll-lock {
+        overflow: hidden !important;
+        overscroll-behavior: none !important;
+        touch-action: none !important;
+      }
+      /* 咨询中 · 高风险安全提示全屏页（托底，语气稳妥、适老） */
+      #risk-safety-root {
+        position: fixed !important;
+        inset: 0 !important;
+        z-index: 2147483100 !important;
+        pointer-events: none !important;
+      }
+      #risk-safety-root > * {
+        pointer-events: auto !important;
+      }
+      .risk-safety-layer {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: max(12px, env(safe-area-inset-top, 0px)) 18px max(18px, env(safe-area-inset-bottom, 0px));
+        box-sizing: border-box;
+        background: linear-gradient(175deg, #faf6f1 0%, #f0e8df 45%, #e8dfd4 100%);
+      }
+      .risk-safety-card {
+        width: 100%;
+        max-width: 23rem;
+        max-height: min(90dvh, 100%);
+        overflow-x: hidden;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        background: #fffdfb;
+        border-radius: 1.35rem;
+        border: 3px solid #b45309;
+        box-shadow: 0 16px 48px rgba(120, 53, 15, 0.12);
+        padding: 1.35rem 1.2rem 1.15rem;
+        box-sizing: border-box;
+      }
+      .risk-safety-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 3.25rem;
+        height: 3.25rem;
+        margin: 0 auto 0.75rem;
+        border-radius: 50%;
+        background: linear-gradient(145deg, #fed7aa, #fdba74);
+        border: 3px solid #fff;
+        box-shadow: 0 4px 14px rgba(180, 83, 9, 0.2);
+        font-size: 1.65rem;
+        line-height: 1;
+      }
+      .risk-safety-h1 {
+        margin: 0 0 0.65rem;
+        font-size: 1.38rem;
+        font-weight: 800;
+        line-height: 1.35;
+        text-align: center;
+        color: #7c2d12;
+      }
+      .risk-safety-lead {
+        margin: 0 0 0.75rem;
+        font-size: 1.08rem;
+        line-height: 1.65;
+        color: #44403c;
+        text-align: center;
+      }
+      .risk-safety-calm {
+        margin: 0 0 1rem;
+        padding: 0.65rem 0.75rem;
+        border-radius: 0.85rem;
+        background: #ecfdf5;
+        border: 2px solid #6ee7b7;
+        font-size: 1.02rem;
+        line-height: 1.55;
+        text-align: center;
+        color: #065f46;
+      }
+      .risk-safety-steps-title {
+        margin: 0 0 0.5rem;
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #78350f;
+      }
+      .risk-safety-steps {
+        margin: 0;
+        padding: 0 0 0 1.35rem;
+        font-size: 1.05rem;
+        line-height: 1.65;
+        color: #292524;
+      }
+      .risk-safety-steps li {
+        margin-bottom: 0.45rem;
+      }
+      .risk-safety-quote {
+        margin: 1rem 0 0;
+        padding: 0.65rem 0.75rem;
+        border-radius: 0.75rem;
+        background: #f5f5f4;
+        border-left: 4px solid #a8a29e;
+        font-size: 0.98rem;
+        line-height: 1.55;
+        color: #57534e;
+      }
+      .risk-safety-quote-label {
+        display: block;
+        font-weight: 700;
+        color: #44403c;
+        margin-bottom: 0.25rem;
+      }
+      .risk-safety-actions {
+        margin-top: 1.15rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+      }
+      .risk-safety-btn-120 {
+        display: flex;
+        min-height: 54px;
+        width: 100%;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        border-radius: 1rem;
+        border: none;
+        cursor: pointer;
+        font-size: 1.12rem;
+        font-weight: 800;
+        background: linear-gradient(180deg, #ef4444, #dc2626);
+        color: #fff;
+        box-shadow: 0 4px 16px rgba(220, 38, 38, 0.28);
+      }
+      .risk-safety-btn-120:active {
+        transform: scale(0.99);
+      }
+      .risk-safety-btn-secondary {
+        display: flex;
+        min-height: 50px;
+        width: 100%;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        border-radius: 1rem;
+        border: 3px solid #b45309;
+        cursor: pointer;
+        font-size: 1.05rem;
+        font-weight: 700;
+        background: #fff;
+        color: #9a3412;
+      }
+      .risk-safety-btn-ghost {
+        display: flex;
+        min-height: 48px;
+        width: 100%;
+        align-items: center;
+        justify-content: center;
+        border-radius: 1rem;
+        border: none;
+        cursor: pointer;
+        font-size: 1rem;
+        font-weight: 600;
+        background: transparent;
+        color: #57534e;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+      .risk-safety-foot {
+        margin: 0.85rem 0 0;
+        font-size: 0.88rem;
+        line-height: 1.5;
+        text-align: center;
+        color: #78716c;
+      }
+      /* 语音示意层：须高于风险提示全屏页，否则无法操作 */
+      .voice-demo-layer {
+        position: fixed !important;
+        inset: 0 !important;
+        z-index: 2147483115 !important;
+        display: flex !important;
+        align-items: flex-end !important;
+        justify-content: center !important;
+        background-color: rgba(0, 0, 0, 0.4) !important;
+      }
+      @media (min-width: 640px) {
+        .voice-demo-layer {
+          align-items: center !important;
+        }
+      }
+      /* 首次打开 · 新手村全屏引导 */
+      #onboarding-root {
+        position: fixed !important;
+        inset: 0 !important;
+        z-index: 2147483200 !important;
+        pointer-events: none !important;
+      }
+      #onboarding-root > * {
+        pointer-events: auto !important;
+      }
+      .onboarding-shell {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: max(10px, env(safe-area-inset-top, 0px)) 18px max(14px, env(safe-area-inset-bottom, 0px));
+        box-sizing: border-box;
+        background: linear-gradient(168deg, #fdf8f2 0%, #f3e8dc 45%, #e8ddd0 100%);
+      }
+      .onboarding-card {
+        width: 100%;
+        max-width: 22.5rem;
+        background: #fffefb;
+        border-radius: 1.35rem;
+        border: 3px solid #c4a574;
+        box-shadow: 0 12px 40px rgba(26, 54, 93, 0.12);
+        padding: 1.35rem 1.15rem 1.15rem;
+        box-sizing: border-box;
+      }
+      .onboarding-title {
+        font-size: 1.4rem;
+        font-weight: 800;
+        color: #1a365d;
+        text-align: center;
+        line-height: 1.4;
+        margin: 0 0 0.35rem;
+      }
+      .onboarding-tagline {
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: #b45309;
+        text-align: center;
+        margin: 0 0 1rem;
+      }
+      .onboarding-p {
+        font-size: 1.05rem;
+        line-height: 1.65;
+        color: #3d3428;
+        margin: 0 0 0.65rem;
+        text-align: center;
+      }
+      .onboarding-box {
+        border: 3px dashed #1a7f5c;
+        border-radius: 1rem;
+        padding: 0.9rem 0.75rem;
+        margin: 0.65rem 0;
+        background: rgba(255, 255, 255, 0.92);
+        text-align: center;
+      }
+      .onboarding-box-warn {
+        font-size: 0.98rem;
+        line-height: 1.55;
+        color: #5c4a3a;
+        margin: 0;
+      }
+      .onboarding-mic-wrap {
+        position: relative;
+        margin: 0.75rem 0 0.25rem;
+      }
+      .onboarding-mic-btn {
+        display: flex;
+        width: 100%;
+        min-height: 56px;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        border-radius: 1rem;
+        font-size: 1.08rem;
+        font-weight: 700;
+        cursor: pointer;
+        border: none;
+        background: linear-gradient(180deg, #1a7f5c, #145e44);
+        color: #fff;
+        box-shadow: 0 4px 14px rgba(26, 127, 92, 0.35);
+      }
+      .onboarding-mic-btn:active,
+      .onboarding-mic-btn.ob-mic-down {
+        transform: scale(0.98);
+        box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.12);
+      }
+      .onboarding-btn-secondary {
+        display: flex;
+        width: 100%;
+        min-height: 52px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 1rem;
+        font-size: 1.05rem;
+        font-weight: 700;
+        border: none;
+        cursor: pointer;
+        background: linear-gradient(180deg, #2d8a5e, #1a7f5c);
+        color: #fff;
+        margin-top: 0.5rem;
+      }
+      .onboarding-btn-start {
+        display: flex;
+        width: 100%;
+        min-height: 56px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 1rem;
+        font-size: 1.15rem;
+        font-weight: 800;
+        border: none;
+        cursor: pointer;
+        background: linear-gradient(180deg, #d97706, #b45309);
+        color: #fff;
+        margin-top: 1rem;
+        box-shadow: 0 6px 20px rgba(180, 83, 9, 0.3);
+      }
+      .onboarding-progress {
+        text-align: center;
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #1a365d;
+        margin-bottom: 0.5rem;
+      }
+      /* 内联反馈：放在卡片底部，不盖住正文与按钮 */
+      .onboarding-inline-feedback {
+        margin-top: 0.85rem;
+        padding: 0.85rem 0.75rem;
+        background: #f0fdf4;
+        border: 3px solid #6ab88a;
+        border-radius: 1rem;
+        font-size: 1.05rem;
+        line-height: 1.5;
+        color: #14532d;
+        text-align: center;
+        animation: onboarding-inline-pop 0.22s ease-out;
+      }
+      @keyframes onboarding-inline-pop {
+        from {
+          opacity: 0;
+          transform: scale(0.98);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+      .onboarding-grad-wrap {
+        text-align: center;
+      }
+      .onboarding-grad-badge {
+        width: 5.75rem;
+        height: 5.75rem;
+        margin: 0 auto 1rem;
+        border-radius: 50%;
+        background: linear-gradient(145deg, #fcd34d, #f59e0b);
+        border: 4px solid #fff;
+        box-shadow: 0 8px 28px rgba(245, 158, 11, 0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        animation: onboarding-badge-bounce 0.75s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      @keyframes onboarding-badge-bounce {
+        0% {
+          transform: scale(0);
+        }
+        65% {
+          transform: scale(1.12);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      .onboarding-skip {
+        display: block;
+        width: 100%;
+        margin-top: 0.75rem;
+        text-align: center;
+        font-size: 0.92rem;
+        color: #78716c;
+        text-decoration: underline;
+        cursor: pointer;
+        background: none;
+        border: none;
+        padding: 0.35rem;
+      }
+      .onboarding-arrow-hint {
+        text-align: center;
+        font-size: 1.35rem;
+        margin: 0.25rem 0 0;
+        color: #1a7f5c;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="poster-root" aria-hidden="true"></div>
+    <div id="onboarding-root" aria-hidden="true"></div>
+    <div id="risk-safety-root" aria-hidden="true"></div>
+
+    <script>
+      (function () {
+        const { createApp, ref, computed, reactive, watch, nextTick, onMounted, onUnmounted } = Vue;
+        const { createRouter, createWebHashHistory, useRouter, useRoute } = VueRouter;
+
+        const riskKeywords = [
+          '胸痛',
+          '心口疼',
+          '胸口痛',
+          '半身麻木',
+          '半边麻木',
+          '肢体麻木',
+          '突然说不出话',
+          '口眼歪斜',
+          '剧烈头痛',
+          '喘不上气',
+          '呼吸困难',
+          '意识不清',
+          '大量出血',
+        ];
+
+        function hasRiskKeyword(text) {
+          if (!text || typeof text !== 'string') return false;
+          const t = text.trim();
+          return riskKeywords.some(function (k) {
+            return t.indexOf(k) !== -1;
+          });
+        }
+
+        function isProbablyImageFile(f) {
+          if (!f || !f.size || f.size > 45 * 1024 * 1024) return false;
+          var t = (f.type || '').toLowerCase();
+          if (t.indexOf('video/') === 0) return false;
+          if (t.indexOf('image/') === 0) return true;
+          if (t === 'application/octet-stream' || t === '') return true;
+          var n = (f.name || '').toLowerCase();
+          if (/\.(heic|heif|jpg|jpeg|png|gif|webp|bmp)$/i.test(n)) return true;
+          return true;
+        }
+
+        const scenarios = {
+          default: {
+            meaning:
+              '您描述的情况更像是一般性的身体不适或生活习惯相关信号，需要结合更多细节判断。',
+            cautions: [
+              '若症状突然加重、持续不缓解，请不要只靠网络咨询。',
+              '有慢性病用药者，勿自行停药或加量。',
+            ],
+            nextSteps: [
+              '把症状出现时间、频率、是否用药记下来，方便问诊时说清楚。',
+              '可先预约社区医生或家庭医生做初步评估。',
+            ],
+          },
+          report: {
+            meaning:
+              '体检报告里很多项目是“参考范围”，略高或略低不一定代表生病，要看整体和趋势。',
+            cautions: [
+              '不要只看单个箭头就自行对号入座。',
+              '若报告有“建议复查/专科就诊”，应优先按报告提示处理。',
+            ],
+            nextSteps: [
+              '把异常项名称和数值拍照保存，就诊时带给医生看。',
+              '可在下次体检前保持规律作息，避免熬夜后立刻抽血。',
+            ],
+          },
+          fatigue: {
+            meaning:
+              '长期觉得累，常见原因包括睡眠差、贫血、甲状腺问题、情绪压力或慢性病未控制好。',
+            cautions: [
+              '若伴有明显消瘦、发热、夜间盗汗等，应尽早就医排查。',
+              '不要长期靠提神饮料硬扛，可能掩盖真实原因。',
+            ],
+            nextSteps: [
+              '连续记录一周睡眠时长与白天精力，观察是否与劳累相关。',
+              '预约内科或全科，可做血常规、甲功等基础检查（以医生建议为准）。',
+            ],
+          },
+          sleep: {
+            meaning: '睡不好往往是“身体+心理+环境”一起作用，需要慢慢调整而不是一次解决。',
+            cautions: [
+              '长期失眠合并情绪低落时，建议同时关注心理健康。',
+              '勿自行长期服用安眠药，需医生指导。',
+            ],
+            nextSteps: [
+              '固定起床时间，白天适度晒太阳、适量走动。',
+              '睡前一小时少看手机，卧室尽量安静、偏暗。',
+            ],
+          },
+          bp: {
+            meaning:
+              '血压偶尔波动很常见，关键看是否持续偏高以及有没有头晕、胸闷等伴随症状。',
+            cautions: ['家庭自测血压需规范测量姿势与时间。', '已用药者不要因一次正常就擅自停药。'],
+            nextSteps: [
+              '早晚各测一次并记录，连续一周带给医生参考。',
+              '减少过咸饮食，避免情绪激动后立即测压。',
+            ],
+          },
+          hypertensionReportPhoto: {
+            meaning:
+              '这类单子多半是血压记录或和高血压相关的化验：常见有收缩压、舒张压（也就是常说的高压、低压），有的还会带血糖、血脂。参考范围旁的箭头多表示比参考值偏高或偏低，不等于就一定得病，还要结合您平时在家测的血压和医生的综合判断。',
+            cautions: [
+              '若单子上印有「危急值」「建议尽快就诊/复查」等字样，请以医院或体检机构当场说明为准，不要拖延。',
+              '家庭测血压建议坐姿端正、手臂与心脏大致平齐，安静休息几分钟后再测，并固定早、晚时间记录。',
+              '不要因一次偏高就自行加量，也不要擅自停药；调药只能由医生决定。',
+              '照片反光、模糊时容易误读，请以纸质原件或医院官方小程序里的结果为准。',
+            ],
+            nextSteps: [
+              '把近一周早晚的血压（可加上心率）记在纸上，复诊时带给医生看趋势。',
+              '就诊时问清楚：目前属于哪种情况、目标血压大概是多少、多久复查一次。',
+              '日常可减少过咸、过油，戒烟限酒，具体饮食方案以医生或营养师建议为准。',
+            ],
+          },
+        };
+
+        const presetScenarioMap = {
+          体检报告看不懂: 'report',
+          血压有点高要紧吗: 'bp',
+        };
+
+        /** 健康咨询页：急性肠胃炎语音对话剧本（依次点话筒推进） */
+        var QUICK_GASTRO_DEMO_STEPS = [
+          { t: 'u', text: '哎呀，孩子，我肚子疼得厉害，一阵一阵的，可难受了' },
+          {
+            t: 'a',
+            text:
+              '阿姨/大爷，您别着急，先缓缓哈。肚子疼有好几种情况呢，我问您，具体是肚子哪个位置疼呀？是上半截、下半截，还是整个肚子都疼？',
+            illustration: './gastro-demo-belly-map.png',
+            illustrationAlt: '示意图：肚子不同位置对照，帮您指一指哪里不舒服',
+          },
+          { t: 'u', text: '就是肚脐周围，一阵一阵抽着疼，我这年纪大了，怕出事儿，你说我用不用去医院啊？' },
+          {
+            t: 'a',
+            text:
+              '阿姨/大爷，您先别慌，我教您自己判断下哈。要是出现这些情况，就赶紧去医院：疼得越来越厉害，直不起腰、站不住，肚子摸起来硬邦邦的，还恶心呕吐、发烧，拉的大便带血或者是黑色的；要是疼能忍住，慢慢能缓解，也不吐、不发烧，拉的大便也正常，就不用急着去医院，先在家缓缓。',
+          },
+          { t: 'u', text: '坏了坏了，我这疼得更厉害了，直冒冷汗，站都站不稳了！' },
+          {
+            t: 'a',
+            text:
+              '阿姨/大爷，快别硬扛了！这种情况必须去医院，赶紧叫家里人送您去附近的医院，或者打120，去医院让医生好好检查，别耽误病情！',
+          },
+          { t: 'photo' },
+          { t: 'u', text: '孩子，我查完血了，你帮我看看这指标啥意思，我也看不懂，心里慌得很。' },
+          {
+            t: 'a',
+            text:
+              '阿姨/大爷，您别慌，我用大白话给您说哈。您这查血指标里，白细胞和中性粒细胞有点高，通俗说就是咱们肚子里有炎症，和您肚子疼、急性肠胃炎是对应的，其他指标都没啥大问题，这就是医生为啥要给您消炎的原因，不用太担心。',
+            illustration: './gastro-demo-inflammation.png',
+            illustrationAlt: '示意图：炎症怎么回事、血常规为啥会升高（大白话）',
+          },
+          {
+            t: 'u',
+            text: '哦，原来是这样，那医生给我打了吊针，还开了药，你帮我看看，这药和吊针靠谱不？',
+          },
+          {
+            t: 'a',
+            text:
+              '阿姨/大爷，您放心，医生开的特别对！吊针主要是帮您消炎、补充水分，因为您肠胃炎可能会拉肚子、脱水，吊针能快速补回来，还能减轻炎症；开的口服药，是缓解肚子疼、止泻的，都是针对您这种急性肠胃炎的，您按时吃，遵医嘱来就好。',
+          },
+          { t: 'u', text: '好嘞好嘞，那我现在从医院出来了，回家以后该注意点啥呀？' },
+          {
+            t: 'a',
+            text:
+              '阿姨/大爷，回家以后可得多注意，这样好得快哈。第一，饮食要清淡，前一两天就吃点白粥、烂面条、煮鸡蛋黄，别吃油腻的、生冷的、辛辣的，也别喝牛奶、吃甜食，容易胀气；第二，多喝温水，少量多次喝，别一次喝太多，避免胀肚子；第三，好好休息，别累着，别受凉，肚子可以捂个热水袋，能缓解不舒服；第四，按时吃药，别忘吃也别多吃；第五，要是再疼起来，或者又开始拉肚子、发烧，赶紧再去医院。',
+          },
+          {
+            t: 'u',
+            text: '知道啦，那我咋知道自己好没好、能恢复正常吃饭了呀？还有以后我该注意啥，避免再得这毛病？',
+          },
+          {
+            t: 'a',
+            text:
+              '阿姨/大爷，要是出现这几种情况，就说明您在恢复啦：肚子疼慢慢减轻，不拉肚子了，能正常吃点清淡的饭，不恶心、不发烧，精神也变好了，能正常活动，这就差不多好利索了。',
+          },
+          {
+            t: 'a',
+            text:
+              '总结一下以后要注意的哈，特别简单：平时别吃不干净、过期的东西，生冷的（比如冰西瓜、生凉菜）少吃，饭前便后一定要洗手；吃饭要规律，别暴饮暴食，也别吃太硬、太油腻的，不好消化；夏天天气热，食物容易坏，剩菜剩饭一定要热透再吃；平时多喝温水，注意肚子保暖，别受凉，这样就能少得肠胃炎啦。',
+          },
+          { t: 'u', text: '太谢谢你了孩子，说得太明白啦，我都记住了！' },
+          {
+            t: 'a',
+            text: '阿姨/大爷，不用客气，您好好休息，早日康复哈！要是还有啥不舒服，随时来问我~',
+          },
+          {
+            t: 'u',
+            text: '把这个经历总结给我，我也要给老王分享，让他注意点。',
+          },
+          {
+            t: 'a',
+            text:
+              '好的，没问题。根据你的经历，我为你整理了一份可以直接分享的「急性肠胃炎康复经验总结」，方便你提醒身边的朋友。',
+          },
+        ];
+
+        var POSTER_HEALTH_BULLETS = [
+          '急性肠胃炎恢复期：先清淡饮食（粥、烂面、蛋），忌油腻生冷辛辣。',
+          '多喝温水、少量多次；注意保暖，腹部可热敷。',
+          '遵医嘱用药；若再剧痛、便血、高烧，及时就医。',
+          '日常预防：饭前便后洗手，不吃不洁、过期食物，剩菜彻底加热。',
+        ];
+
+        var POSTER_SHARE_HEADLINE = '急性肠胃炎恢复期，这样调养更踏实';
+        var POSTER_SHARE_SUMMARY =
+          '先吃清淡（粥、烂面、蛋），少油腻生冷；多喝温水、肚子保暖；按时吃药，听医生的。疼得厉害、便血或发烧，别耽搁，尽快去医院。';
+        var POSTER_SHARE_TIP = '小贴士：饭前便后洗手，剩饭菜要彻底加热，天热更要注意食物新鲜。';
+
+        function msgId() {
+          return 'm-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+        }
+
+        const chatStore = reactive({
+          messages: [],
+          reset: function () {
+            this.messages.forEach(function (m) {
+              if (m.kind === 'photo' && m.imageUrl && String(m.imageUrl).indexOf('blob:') === 0) {
+                try {
+                  URL.revokeObjectURL(m.imageUrl);
+                } catch (e) {}
+              }
+            });
+            this.messages = [];
+          },
+        });
+
+        const svg = {
+          leaf: '<svg class="h-11 w-11 text-songhe-primary" xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 3.5 2 8.8a7 7 0 0 1-10 9.2Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>',
+          sparkles:
+            '<svg class="h-7 w-7 shrink-0" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>',
+          chevronLeft:
+            '<svg class="h-8 w-8" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>',
+          mic: '<svg class="h-14 w-14" xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>',
+          send:
+            '<svg class="h-7 w-7" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></svg>',
+          volume:
+            '<svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>',
+          share:
+            '<svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" x2="12" y1="2" y2="15"/></svg>',
+          alert:
+            '<svg class="mt-1 h-10 w-10 shrink-0 text-amber-200" xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
+          phone:
+            '<svg class="h-8 w-8" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
+          user:
+            '<svg class="h-8 w-8" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>',
+          image:
+            '<svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>',
+        };
+
+        const Home = {
+          setup() {
+            const router = useRouter();
+            return {
+              goQuestion: function () {
+                chatStore.reset();
+                router.push({ path: '/chat', query: { from: 'quick' } });
+              },
+              goGuide: function () {
+                if (typeof window.songheReopenOnboarding === 'function') {
+                  window.songheReopenOnboarding();
+                  return;
+                }
+                chatStore.reset();
+                router.push({ path: '/chat', query: { from: 'guide' } });
+              },
+              svg,
+            };
+          },
+          template:
+            '<main class="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-white px-5 pb-8 pt-10">' +
+            '<header class="mb-10 text-center">' +
+            '<div class="mx-auto mb-4 flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-white p-1 ring-2 ring-songhe-primary/20">' +
+            '<img class="h-full w-full object-contain" src="./songhe-logo.png" alt="松鹤·智语" />' +
+            '</div>' +
+            '<h1 class="text-2xl font-bold tracking-tight text-songhe-primary md:text-[2rem]">松鹤·智语</h1>' +
+            '<p class="mt-3 text-lg leading-relaxed text-songhe-text-muted">用大白话，陪您看懂健康上的困惑</p>' +
+            '</header>' +
+            '<section class="flex flex-1 flex-col gap-5">' +
+            '<button type="button" class="flex min-h-touch w-full flex-col items-start rounded-2xl bg-songhe-primary px-6 py-5 text-left text-white shadow-lg shadow-songhe-primary/25 transition active:scale-[0.98] active:bg-songhe-primary-active" @click="goQuestion">' +
+            '<span class="flex items-center gap-2 text-xl font-semibold"><span v-html="svg.sparkles"></span>开始咨询</span>' +
+            '<span class="mt-2 text-base text-white/90">进入对话，语音提问、白话解读，可传图看报告</span>' +
+            '</button>' +
+            '<button type="button" class="flex min-h-touch w-full flex-col items-start rounded-2xl border-2 border-songhe-primary/30 bg-songhe-mint px-6 py-5 text-left text-songhe-primary transition active:scale-[0.98] active:border-songhe-primary active:bg-emerald-50" @click="goGuide">' +
+            '<span class="text-xl font-semibold">首次使用指南</span>' +
+            '<span class="mt-2 text-base text-songhe-primary/80">分步介绍界面与操作，方便第一次使用</span>' +
+            '</button>' +
+            '</section>' +
+            '<footer class="mt-auto pt-10" style="padding-bottom:max(1.5rem, env(safe-area-inset-bottom, 0px))">' +
+            '<p class="text-center text-base leading-relaxed text-songhe-text-muted">温馨提示：内容仅供健康科普与就医参考，不能替代执业医师的诊断与治疗</p>' +
+            '</footer>' +
+            '</main>',
+        };
+
+
+        const Chat = {
+          setup() {
+            const router = useRouter();
+            const route = useRoute();
+            const inputText = ref('');
+            const micActive = ref(false);
+            const msgListRef = ref(null);
+            const isTyping = ref(false);
+            const showPresets = ref(true);
+            const voiceDemoPlaying = ref(false);
+            var voiceDemoTimer = null;
+            const fileInputRef = ref(null);
+            const chatEndRef = ref(null);
+            const typingHint = ref('正在生成解读…');
+            const quickDemoStep = ref(0);
+            const showPosterBar = ref(false);
+            const posterStoryOpen = ref(false);
+            const posterGenerating = ref(false);
+            const posterOpenedOnce = ref(false);
+            /** 开始咨询剧本：生成海报后再点话筒，仅演示一次高风险全屏页 */
+            const quickPostPosterRiskPlayed = ref(false);
+            const riskSafetyOpen = ref(false);
+            const riskSafetySource = ref('');
+            const entryFrom = computed(function () {
+              var f = route.query.from;
+              if (f === 'guide') return 'guide';
+              if (f === 'quick') return 'quick';
+              return 'consult';
+            });
+            const presets = Object.keys(presetScenarioMap);
+
+            function quickDemoAtPhotoStep() {
+              if (entryFrom.value !== 'quick') return false;
+              var i = quickDemoStep.value;
+              var s = QUICK_GASTRO_DEMO_STEPS[i];
+              return !!(s && s.t === 'photo');
+            }
+
+            function playConsecutiveScriptAIReplies() {
+              var steps = QUICK_GASTRO_DEMO_STEPS;
+              function emitOne() {
+                var idx = quickDemoStep.value;
+                if (idx >= steps.length || steps[idx].t !== 'a') {
+                  isTyping.value = false;
+                  scrollBottom();
+                  return;
+                }
+                isTyping.value = false;
+                var astep = steps[idx];
+                var apayload = {
+                  id: msgId(),
+                  role: 'assistant',
+                  kind: 'scriptAnswer',
+                  content: astep.text,
+                };
+                if (astep.illustration) {
+                  apayload.illustrationUrl = astep.illustration;
+                  apayload.illustrationAlt = astep.illustrationAlt || '教学示意图';
+                }
+                chatStore.messages.push(apayload);
+                quickDemoStep.value = idx + 1;
+                scrollBottom();
+                var n = quickDemoStep.value;
+                if (n < steps.length && steps[n].t === 'a') {
+                  isTyping.value = true;
+                  typingHint.value = '正在回复…';
+                  scrollBottom();
+                  window.setTimeout(emitOne, 520);
+                } else {
+                  isTyping.value = false;
+                  scrollBottom();
+                }
+              }
+              emitOne();
+            }
+
+            function triggerQuickPostPosterRiskDemo() {
+              quickPostPosterRiskPlayed.value = true;
+              var text = '我还有点喘不上气';
+              chatStore.messages.push({
+                id: msgId(),
+                role: 'user',
+                kind: 'voice',
+                text: text,
+              });
+              showPresets.value = false;
+              scrollBottom();
+              isTyping.value = true;
+              typingHint.value = '正在生成解读…';
+              scrollBottom();
+              window.setTimeout(function () {
+                isTyping.value = false;
+                chatStore.messages.push({
+                  id: msgId(),
+                  role: 'assistant',
+                  kind: 'risk',
+                  sourceText: text,
+                });
+                riskSafetySource.value = text;
+                riskSafetyOpen.value = true;
+                scrollBottom();
+                nextTick(function () {
+                  var root = document.getElementById('risk-safety-root');
+                  if (root) root.setAttribute('aria-hidden', 'false');
+                });
+              }, 550);
+            }
+
+            function advanceQuickGastroDemo() {
+              var steps = QUICK_GASTRO_DEMO_STEPS;
+              var idx = quickDemoStep.value;
+              if (idx >= steps.length) {
+                if (showPosterBar.value && !posterOpenedOnce.value) {
+                  window.alert('请先点击下方「生成助教海报」，查看分享到微信群的效果。');
+                  return;
+                }
+                if (posterOpenedOnce.value && !quickPostPosterRiskPlayed.value) {
+                  triggerQuickPostPosterRiskDemo();
+                  return;
+                }
+                window.alert('返回首页可重新开始咨询。');
+                return;
+              }
+              var cur = steps[idx];
+              if (cur.t === 'photo') {
+                window.alert(
+                  '请上传检查单或化验单照片：点下方「图片」，从相册选择即可继续。'
+                );
+                return;
+              }
+              if (cur.t !== 'u') {
+                return;
+              }
+              chatStore.messages.push({
+                id: msgId(),
+                role: 'user',
+                kind: 'voice',
+                text: cur.text,
+              });
+              showPresets.value = false;
+              quickDemoStep.value = idx + 1;
+              scrollBottom();
+              isTyping.value = true;
+              typingHint.value = '正在回复…';
+              scrollBottom();
+              window.setTimeout(function () {
+                playConsecutiveScriptAIReplies();
+              }, 560);
+            }
+
+            function handleQuickDemoPhotoUpload(imageUrl) {
+              showPresets.value = false;
+              chatStore.messages.push({
+                id: msgId(),
+                role: 'user',
+                kind: 'photo',
+                imageUrl: imageUrl,
+                text: '',
+              });
+              quickDemoStep.value++;
+              scrollBottom();
+              typingHint.value = '正在查看您上传的图片…';
+              isTyping.value = true;
+              scrollBottom();
+              window.setTimeout(function () {
+                var steps = QUICK_GASTRO_DEMO_STEPS;
+                var i = quickDemoStep.value;
+                if (i >= steps.length || steps[i].t !== 'u') {
+                  isTyping.value = false;
+                  scrollBottom();
+                  return;
+                }
+                isTyping.value = false;
+                chatStore.messages.push({
+                  id: msgId(),
+                  role: 'user',
+                  kind: 'voice',
+                  text: steps[i].text,
+                });
+                quickDemoStep.value = i + 1;
+                scrollBottom();
+                isTyping.value = true;
+                typingHint.value = '正在回复…';
+                scrollBottom();
+                window.setTimeout(function () {
+                  playConsecutiveScriptAIReplies();
+                }, 560);
+              }, 880);
+            }
+
+            function scrollBottom() {
+              function run() {
+                var el = msgListRef.value;
+                if (el) {
+                  el.scrollTop = el.scrollHeight;
+                }
+                var end = chatEndRef.value;
+                if (end && end.scrollIntoView) {
+                  try {
+                    end.scrollIntoView({ block: 'end', inline: 'nearest' });
+                  } catch (e1) {
+                    try {
+                      end.scrollIntoView(false);
+                    } catch (e2) {}
+                  }
+                }
+                var doc = document.documentElement;
+                var h = Math.max(doc.scrollHeight, doc.body.scrollHeight);
+                window.scrollTo(0, h);
+              }
+              nextTick(function () {
+                run();
+                requestAnimationFrame(function () {
+                  run();
+                  requestAnimationFrame(function () {
+                    run();
+                    window.setTimeout(run, 0);
+                    window.setTimeout(run, 80);
+                    window.setTimeout(run, 200);
+                    window.setTimeout(run, 450);
+                    window.setTimeout(run, 700);
+                  });
+                });
+              });
+            }
+
+            function appendWelcome() {
+              if (chatStore.messages.length > 0) return;
+              var f = route.query.from;
+              var variant = f === 'guide' ? 'guide' : f === 'quick' ? 'quick' : 'consult';
+              chatStore.messages.push({
+                id: msgId(),
+                role: 'assistant',
+                kind: 'welcome',
+                variant: variant,
+              });
+            }
+
+            function resolveScenarioKey(text) {
+              var t = text.trim();
+              return presetScenarioMap[t] || 'default';
+            }
+
+            function copyScenario(key) {
+              var s = scenarios[key] || scenarios.default;
+              return {
+                meaning: s.meaning,
+                cautions: s.cautions.slice(),
+                nextSteps: s.nextSteps.slice(),
+              };
+            }
+
+            function sendUserText(raw) {
+              if (entryFrom.value === 'quick') {
+                window.alert('本页支持语音咨询，请点左侧话筒说话；需要上传报告时，请按界面提示操作。');
+                return;
+              }
+              if (!raw || !String(raw).trim()) return;
+              var text = String(raw).trim();
+              inputText.value = '';
+              chatStore.messages.push({ id: msgId(), role: 'user', text: text });
+              showPresets.value = false;
+              scrollBottom();
+
+              if (hasRiskKeyword(text)) {
+                isTyping.value = true;
+                typingHint.value = '正在生成解读…';
+                scrollBottom();
+                window.setTimeout(function () {
+                  isTyping.value = false;
+                  chatStore.messages.push({
+                    id: msgId(),
+                    role: 'assistant',
+                    kind: 'risk',
+                    sourceText: text,
+                  });
+                  riskSafetySource.value = text;
+                  riskSafetyOpen.value = true;
+                  scrollBottom();
+                  nextTick(function () {
+                    var root = document.getElementById('risk-safety-root');
+                    if (root) root.setAttribute('aria-hidden', 'false');
+                  });
+                }, 550);
+                return;
+              }
+
+              var key = resolveScenarioKey(text);
+              var payload = copyScenario(key);
+              isTyping.value = true;
+              typingHint.value = '正在生成解读…';
+              scrollBottom();
+              window.setTimeout(function () {
+                isTyping.value = false;
+                chatStore.messages.push({
+                  id: msgId(),
+                  role: 'assistant',
+                  kind: 'answer',
+                  question: text,
+                  meaning: payload.meaning,
+                  cautions: payload.cautions,
+                  nextSteps: payload.nextSteps,
+                });
+                scrollBottom();
+              }, 480);
+            }
+
+            function submitFromInput() {
+              sendUserText(inputText.value);
+            }
+
+            function submitPreset(p) {
+              sendUserText(p);
+            }
+
+            function toggleMicDemo() {
+              micActive.value = !micActive.value;
+              if (!micActive.value) return;
+              if (entryFrom.value === 'quick') {
+                window.setTimeout(function () {
+                  micActive.value = false;
+                  advanceQuickGastroDemo();
+                }, 1500);
+                return;
+              }
+              window.setTimeout(function () {
+                micActive.value = false;
+                sendUserText('最近总觉得累');
+              }, 1600);
+            }
+
+            var PHOTO_ANSWER_TITLE = '关于您上传的血压 / 化验单';
+
+            function finishPhotoWithScenario(imageUrl, bubbleText) {
+              showPresets.value = false;
+              chatStore.messages.push({
+                id: msgId(),
+                role: 'user',
+                kind: 'photo',
+                imageUrl: imageUrl,
+                text: bubbleText,
+              });
+              scrollBottom();
+              typingHint.value = '正在查看您上传的图片…';
+              isTyping.value = true;
+              scrollBottom();
+              window.setTimeout(function () {
+                isTyping.value = false;
+                var payload = copyScenario('hypertensionReportPhoto');
+                chatStore.messages.push({
+                  id: msgId(),
+                  role: 'assistant',
+                  kind: 'answer',
+                  question: PHOTO_ANSWER_TITLE,
+                  meaning: payload.meaning,
+                  cautions: payload.cautions,
+                  nextSteps: payload.nextSteps,
+                });
+                scrollBottom();
+              }, 900);
+            }
+
+            function onFileInputClick(ev) {
+              var input = ev.target;
+              if (input && input.type === 'file') input.value = '';
+            }
+
+            function startChatPhotoFromFile(f) {
+              function done(url) {
+                if (!url) {
+                  window.alert('图片未能加载，请重试或换一张。');
+                  return;
+                }
+                if (entryFrom.value === 'quick' && quickDemoAtPhotoStep()) {
+                  handleQuickDemoPhotoUpload(url);
+                  return;
+                }
+                finishPhotoWithScenario(url, '');
+              }
+              try {
+                done(URL.createObjectURL(f));
+              } catch (e) {
+                var reader = new FileReader();
+                reader.onload = function () {
+                  done(reader.result);
+                };
+                reader.onerror = function () {
+                  window.alert('图片读取失败，请重试。');
+                };
+                reader.readAsDataURL(f);
+              }
+            }
+
+            function onPhotoSelected(ev) {
+              var input = ev.target;
+              var files = input.files;
+              window.setTimeout(function () {
+                if (input) input.value = '';
+              }, 0);
+              if (!files || !files.length) return;
+              var f = files[0];
+              if (!isProbablyImageFile(f)) {
+                window.alert('未识别为图片，请从相册选择照片或截图后再试。');
+                return;
+              }
+              if (entryFrom.value === 'quick' && !quickDemoAtPhotoStep()) {
+                window.alert('请先点话筒继续语音沟通，需要上传化验单时会有提示。');
+                return;
+              }
+              startChatPhotoFromFile(f);
+            }
+
+            function goBack() {
+              router.push({ path: '/' });
+            }
+
+            function call120() {
+              window.location.href = 'tel:120';
+            }
+
+            function callEmergencyContact() {
+              window.alert('请直接使用手机联系家人，或陪同前往就近医疗机构。');
+            }
+
+            function dismissRiskSafetyPage() {
+              riskSafetyOpen.value = false;
+              riskSafetySource.value = '';
+              var root = document.getElementById('risk-safety-root');
+              if (root) root.setAttribute('aria-hidden', 'true');
+              nextTick(function () {
+                scrollBottom();
+              });
+            }
+
+            function dismissVoiceDemo() {
+              if (voiceDemoTimer) {
+                window.clearTimeout(voiceDemoTimer);
+                voiceDemoTimer = null;
+              }
+              voiceDemoPlaying.value = false;
+            }
+
+            function playVoiceDemo() {
+              if (voiceDemoTimer) {
+                window.clearTimeout(voiceDemoTimer);
+              }
+              voiceDemoPlaying.value = true;
+              voiceDemoTimer = window.setTimeout(function () {
+                voiceDemoPlaying.value = false;
+                voiceDemoTimer = null;
+              }, 2800);
+            }
+
+            function openPosterStory() {
+              posterOpenedOnce.value = true;
+              posterStoryOpen.value = true;
+              posterGenerating.value = true;
+              window.setTimeout(function () {
+                posterGenerating.value = false;
+              }, 1100);
+              nextTick(function () {
+                scrollBottom();
+              });
+            }
+
+            function dismissPosterStory() {
+              posterStoryOpen.value = false;
+            }
+
+            function buildPosterShareText() {
+              return (
+                '【松鹤·智语｜急性肠胃炎康复要点】\n' +
+                POSTER_SHARE_HEADLINE +
+                '\n\n' +
+                POSTER_SHARE_SUMMARY +
+                '\n\n' +
+                POSTER_SHARE_TIP
+              );
+            }
+
+            function savePosterImageDemo() {
+              window.alert('在小程序内可将海报保存到手机相册；当前为网页示意。');
+            }
+
+            function sharePosterCard() {
+              var text = buildPosterShareText();
+              if (navigator.share) {
+                navigator
+                  .share({ title: '松鹤·智语 · 健康提醒', text: text })
+                  .catch(function () {
+                    fallbackSharePosterText(text);
+                  });
+              } else {
+                fallbackSharePosterText(text);
+              }
+            }
+
+            function fallbackSharePosterText(text) {
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(
+                  function () {
+                    window.alert('已复制分享文案，可粘贴到微信发给家人朋友。');
+                  },
+                  function () {
+                    window.alert('复制失败，请手动选中文字分享。');
+                  }
+                );
+              } else {
+                window.alert('请手动复制聊天里的要点后分享给家人朋友。');
+              }
+            }
+
+            function setPosterScrollLock(on) {
+              var c = 'poster-scroll-lock';
+              try {
+                document.documentElement.classList.toggle(c, !!on);
+                document.body.classList.toggle(c, !!on);
+              } catch (e) {}
+            }
+
+            watch(
+              function () {
+                return [posterStoryOpen.value, riskSafetyOpen.value];
+              },
+              function (pair) {
+                setPosterScrollLock(!!(pair[0] || pair[1]));
+              }
+            );
+
+            onUnmounted(function () {
+              setPosterScrollLock(false);
+              var root = document.getElementById('risk-safety-root');
+              if (root) root.setAttribute('aria-hidden', 'true');
+            });
+
+            function shareDemo(m) {
+              var body = m.kind === 'scriptAnswer' ? m.content || '' : m.meaning || '';
+              var text = '【松鹤·智语】' + (m.question || '') + '\n' + body;
+              if (navigator.share) {
+                navigator.share({ title: '松鹤·智语', text: text }).catch(function () {
+                  if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text);
+                  }
+                  window.alert('分享未成功时，已尝试将摘要复制到剪贴板');
+                });
+              } else {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                  navigator.clipboard.writeText(text);
+                }
+                window.alert('摘要已复制到剪贴板，可粘贴后发送给家人');
+              }
+            }
+
+            onMounted(function () {
+              showPresets.value = route.query.from !== 'quick';
+              appendWelcome();
+            });
+
+            watch(
+              function () {
+                return [chatStore.messages.length, isTyping.value, entryFrom.value];
+              },
+              function () {
+                if (entryFrom.value === 'guide' && chatStore.messages.length === 1) {
+                  nextTick(function () {
+                    var el = msgListRef.value;
+                    if (el) el.scrollTop = 0;
+                  });
+                  return;
+                }
+                scrollBottom();
+              },
+              { flush: 'post' }
+            );
+
+            watch(
+              function () {
+                return [quickDemoStep.value, entryFrom.value];
+              },
+              function () {
+                if (entryFrom.value === 'quick' && quickDemoStep.value >= QUICK_GASTRO_DEMO_STEPS.length) {
+                  showPosterBar.value = true;
+                }
+              },
+              { flush: 'post' }
+            );
+
+            return {
+              chatStore,
+              inputText,
+              micActive,
+              msgListRef,
+              isTyping,
+              showPresets,
+              entryFrom,
+              presets,
+              goBack,
+              submitFromInput,
+              submitPreset,
+              toggleMicDemo,
+              fileInputRef,
+              chatEndRef,
+              onFileInputClick,
+              onPhotoSelected,
+              typingHint,
+              call120,
+              callEmergencyContact,
+              playVoiceDemo,
+              dismissVoiceDemo,
+              voiceDemoPlaying,
+              shareDemo,
+              svg,
+              showPosterBar,
+              posterStoryOpen,
+              posterGenerating,
+              openPosterStory,
+              dismissPosterStory,
+              posterBullets: POSTER_HEALTH_BULLETS,
+              posterHeadline: POSTER_SHARE_HEADLINE,
+              posterSummary: POSTER_SHARE_SUMMARY,
+              posterTip: POSTER_SHARE_TIP,
+              savePosterImageDemo,
+              sharePosterCard,
+              riskSafetyOpen,
+              riskSafetySource,
+              dismissRiskSafetyPage,
+            };
+          },
+          template:
+            '<main class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" :class="entryFrom === \'guide\' ? \'bg-[#e8e2d8]\' : \'bg-[#ededed]\'">' +
+            '<header class="flex h-[52px] shrink-0 items-center border-b px-1" :class="entryFrom === \'guide\' ? \'border-amber-300/60 bg-[#f3efe6]\' : \'border-black/10 bg-[#ededed]\'">' +
+            '<button type="button" class="flex h-11 w-11 shrink-0 items-center justify-center text-songhe-primary active:opacity-70" aria-label="返回" @click="goBack"><span v-html="svg.chevronLeft"></span></button>' +
+            '<div class="min-w-0 flex-1 text-center">' +
+            '<div class="truncate text-[17px] font-semibold text-black">松鹤·智语</div>' +
+            '<div class="truncate text-[13px] font-medium" :class="entryFrom === \'guide\' ? \'text-amber-900/90\' : \'text-emerald-800/90\'">{{ entryFrom === \'guide\' ? \'使用指南\' : \'健康咨询\' }}</div></div>' +
+            '<div class="w-11 shrink-0"></div>' +
+            '</header>' +
+            '<div ref="msgListRef" class="wx-chat-scroll min-h-0 flex-1 overflow-y-auto px-3 py-3">' +
+            '<p class="mb-2 text-center text-sm leading-relaxed text-songhe-text-muted">温馨提示：内容仅供参考，不作为诊疗依据；身体不适请及时就医或拨打 120</p>' +
+            '<template v-for="m in chatStore.messages" :key="m.id">' +
+            '<div v-if="m.kind===\'welcome\' && m.variant===\'quick\'" class="mb-4 flex gap-2">' +
+            '<img class="chat-avatar-logo rounded-md" src="./songhe-logo.png" alt="" />' +
+            '<div class="max-w-[min(90%,20rem)] rounded-lg border border-emerald-200/80 bg-white px-3 py-3 text-black shadow-sm">' +
+            '<p class="text-lg leading-relaxed text-songhe-text">您好！肚子不舒服、怀疑<strong class="text-songhe-primary">急性肠胃炎</strong>等情况时，可点左侧<strong class="text-songhe-primary">话筒</strong>语音描述症状，助手会用大白话帮您梳理；需要解读化验结果时，点<strong class="text-songhe-primary">图片</strong>上传检查单即可。</p>' +
+            '<p class="mt-2 text-sm leading-relaxed text-songhe-text-muted">内容仅供参考，不作为诊疗依据；急症请拨打 <strong class="text-red-700">120</strong>。首次使用可返回首页查看「首次使用指南」。</p>' +
+            '<div class="mt-3 border-t border-emerald-100 pt-2">' +
+            '<button type="button" class="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-songhe-primary px-3 text-base font-medium text-white active:bg-songhe-primary-active" @click="playVoiceDemo"><span v-html="svg.volume"></span>语音播放</button>' +
+            '</div></div></div>' +
+            '<div v-else-if="m.kind===\'welcome\' && m.variant===\'guide\'" class="mb-4 flex gap-2">' +
+            '<img class="chat-avatar-logo rounded-lg" src="./songhe-logo.png" alt="" />' +
+            '<div class="max-w-[min(94%,22rem)] rounded-xl border-2 border-amber-300 bg-white px-3 py-3 text-black shadow-sm">' +
+            '<p class="text-lg font-bold text-amber-900">使用指南</p>' +
+            '<p class="mt-1.5 text-base leading-relaxed text-songhe-text">用几条<strong class="text-songhe-primary">大白话</strong>说明怎么用，看完就能提问。</p>' +
+            '<div class="mt-3 space-y-2 border-t border-amber-200/80 pt-3 text-base leading-relaxed text-songhe-text">' +
+            '<p><strong class="text-songhe-primary">① 做什么：</strong>帮理解体检、睡眠、疲劳、血压等；<strong>不能</strong>代替医生看病、开药。</p>' +
+            '<p><strong class="text-songhe-primary">② 界面：</strong>顶栏左箭头返回；中间对话区<strong>左白右绿</strong>；下面输入后点绿键「发送」；上方可滑动点「常见问题」。</p>' +
+            '<p><strong class="text-songhe-primary">③ 提问：</strong>点输入框 → 打字 → 发送；可连着多问。</p>' +
+            '<p><strong class="text-songhe-primary">④ 语音输入：</strong>轻点话筒可尝试录入示例内容（便于熟悉流程）。</p>' +
+            '<p><strong class="text-songhe-primary">⑤ 回复：</strong>分三块——什么意思、要注意什么、下一步怎么做。底部可按「语音播放」收听读屏、可分享。</p>' +
+            '<p><strong class="text-songhe-primary">⑥ 照片：</strong>点「图片」从相册或拍照，选好即自动发送。</p>' +
+            '</div>' +
+            '<div class="mt-2 rounded-lg border border-red-200 bg-red-50 px-2.5 py-2 text-sm leading-relaxed text-red-900"><strong>急症</strong>（胸疼、喘憋、半身麻等）请先拨打 <strong>120</strong> 或前往急诊，并尽快告知家属。</div>' +
+            '<p class="mt-2 text-sm text-songhe-text-muted">可先点选常见问题熟悉流程；输入含「胸痛」等急症相关描述时，将为您突出急救提示。字小可在系统设置中调大显示。</p>' +
+            '<div class="mt-3 border-t border-amber-200/80 pt-2">' +
+            '<button type="button" class="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-amber-800 px-3 text-base font-medium text-white active:bg-amber-900" @click="playVoiceDemo"><span v-html="svg.volume"></span>语音播放</button>' +
+            '</div></div></div>' +
+            '<div v-else-if="m.kind===\'welcome\' && m.variant===\'consult\'" class="mb-4 flex gap-2">' +
+            '<img class="chat-avatar-logo rounded-md" src="./songhe-logo.png" alt="" />' +
+            '<div class="max-w-[min(90%,20rem)] rounded-lg border border-emerald-200/80 bg-white px-3 py-3 text-black shadow-sm">' +
+            '<p class="text-lg leading-relaxed text-songhe-text">您好！您可以<strong class="text-songhe-primary">打字</strong>或点<strong class="text-songhe-primary">话筒</strong>描述关心的健康问题；要看检查单、化验单时，点<strong class="text-songhe-primary">图片</strong>上传照片。</p>' +
+            '<p class="mt-2 text-sm leading-relaxed text-songhe-text-muted">内容仅供参考，不作为诊疗依据；胸口疼、喘不上气等急症请先拨打 <strong class="text-red-700">120</strong> 或尽快就医。</p>' +
+            '<div class="mt-3 border-t border-emerald-100 pt-2">' +
+            '<button type="button" class="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-songhe-primary px-3 text-base font-medium text-white active:bg-songhe-primary-active" @click="playVoiceDemo"><span v-html="svg.volume"></span>语音播放</button>' +
+            '</div></div></div>' +
+            '<div v-else-if="m.role===\'user\'" class="mb-3 flex justify-end">' +
+            '<div class="max-w-[min(92%,20rem)] overflow-hidden rounded-lg bg-[#95ec69] px-3 py-2 text-lg leading-relaxed text-black">' +
+            '<div v-if="m.kind===\'voice\'" class="mb-2 flex items-center gap-1.5 border-b border-black/10 pb-1.5 text-xs font-semibold text-emerald-900/90">' +
+            '<svg class="h-4 w-4 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>' +
+            '<span>语音转文字</span></div>' +
+            '<img v-if="m.kind===\'photo\' && m.imageUrl" :src="m.imageUrl" alt="您上传的照片" :class="m.text ? \'mb-2\' : \'\'" class="max-h-52 w-full rounded-md object-cover object-top" />' +
+            '<span v-if="m.text">{{ m.text }}</span></div></div>' +
+            '<div v-else-if="m.kind===\'scriptAnswer\'" class="mb-4 flex gap-2">' +
+            '<img class="chat-avatar-logo rounded-md" src="./songhe-logo.png" alt="" />' +
+            '<div class="max-w-[min(92%,22rem)] min-w-0 rounded-lg border border-slate-200/80 bg-white px-3 py-2.5 text-black shadow-sm">' +
+            '<p class="text-base leading-relaxed text-songhe-text whitespace-pre-wrap">{{ m.content }}</p>' +
+            '<img v-if="m.illustrationUrl" class="script-answer-illus mt-3 rounded-xl border border-slate-200/90 bg-slate-50/80" :src="m.illustrationUrl" :alt="m.illustrationAlt || \'教学示意图\'" />' +
+            '<div class="mt-2 flex flex-wrap gap-2 border-t border-slate-100 pt-2">' +
+            '<button type="button" class="flex min-h-[40px] flex-1 items-center justify-center gap-1 rounded-md bg-songhe-primary px-2 text-sm font-medium text-white active:bg-songhe-primary-active" @click="playVoiceDemo"><span v-html="svg.volume"></span>语音播放</button>' +
+            '<button type="button" class="flex min-h-[40px] flex-1 items-center justify-center gap-1 rounded-md border border-songhe-primary bg-white px-2 text-sm font-medium text-songhe-primary active:bg-songhe-mint" @click="shareDemo(m)"><span v-html="svg.share"></span>分享</button></div>' +
+            '</div></div>' +
+            '<div v-else-if="m.kind===\'answer\'" class="mb-4 flex gap-2">' +
+            '<img class="chat-avatar-logo rounded-md" src="./songhe-logo.png" alt="" />' +
+            '<div class="max-w-[min(92%,22rem)] min-w-0 rounded-lg border border-slate-200/80 bg-white px-3 py-2.5 text-black shadow-sm">' +
+            '<p class="mb-2 text-base font-semibold text-songhe-primary">「{{ m.question }}」</p>' +
+            '<div class="space-y-2.5 text-base leading-relaxed">' +
+            '<div><span class="font-bold text-songhe-primary">这是什么意思</span><p class="mt-0.5 text-songhe-text">{{ m.meaning }}</p></div>' +
+            '<div class="rounded-lg bg-amber-50/95 px-2 py-1.5"><span class="font-bold text-amber-900">要注意什么</span>' +
+            '<ul class="mt-0.5 list-inside list-disc space-y-0.5 text-sm text-amber-950"><li v-for="(c,i) in m.cautions" :key="i">{{ c }}</li></ul></div>' +
+            '<div class="rounded-lg bg-emerald-50/95 px-2 py-1.5"><span class="font-bold text-emerald-900">下一步怎么做</span>' +
+            '<ul class="mt-0.5 space-y-1 text-sm text-emerald-950"><li v-for="(s,i) in m.nextSteps" :key="i" class="flex gap-2"><span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-600"></span><span>{{ s }}</span></li></ul></div></div>' +
+            '<div class="mt-2 flex flex-wrap gap-2 border-t border-slate-100 pt-2">' +
+            '<button type="button" class="flex min-h-[40px] flex-1 items-center justify-center gap-1 rounded-md bg-songhe-primary px-2 text-sm font-medium text-white active:bg-songhe-primary-active" @click="playVoiceDemo"><span v-html="svg.volume"></span>语音播放</button>' +
+            '<button type="button" class="flex min-h-[40px] flex-1 items-center justify-center gap-1 rounded-md border border-songhe-primary bg-white px-2 text-sm font-medium text-songhe-primary active:bg-songhe-mint" @click="shareDemo(m)"><span v-html="svg.share"></span>分享</button></div>' +
+            '</div></div>' +
+            '<div v-else-if="m.kind===\'risk\'" class="mb-4">' +
+            '<div class="mx-auto max-w-full rounded-xl border-2 border-amber-800/40 bg-gradient-to-b from-amber-900 to-amber-950 p-4 text-white shadow-md">' +
+            '<p class="text-lg font-bold">安全提示（对话记录）</p>' +
+            '<p class="mt-1.5 text-base leading-relaxed text-white/95">本条与刚才<strong>全屏安全说明</strong>一致：这类情况<strong>不适合只靠线上问</strong>，请先休息，尽快就医或拨打 120，并告诉家人。</p>' +
+            '<p v-if="m.sourceText" class="mt-2 rounded-lg bg-black/25 px-2.5 py-2 text-sm leading-relaxed text-white/95">您描述的内容：{{ m.sourceText }}</p>' +
+            '<button type="button" class="mt-3 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border-2 border-white/90 bg-white/15 text-base font-semibold text-white active:bg-white/25" @click="playVoiceDemo"><span v-html="svg.volume"></span>语音播放</button>' +
+            '<div class="mt-3 flex flex-col gap-2">' +
+            '<button type="button" class="flex min-h-[52px] items-center justify-center gap-2 rounded-lg bg-white text-lg font-bold text-red-600 active:bg-red-50" @click="call120"><span v-html="svg.phone"></span>拨打 120</button>' +
+            '<button type="button" class="flex min-h-[52px] items-center justify-center gap-2 rounded-lg border-2 border-white/90 bg-white/10 text-lg font-bold text-white active:bg-white/20" @click="callEmergencyContact"><span v-html="svg.user"></span>联系家人</button></div>' +
+            '<p class="mt-2 text-center text-xs text-white/80">若不适加重，请不要再依赖手机咨询，以急救与医院为准。</p></div></div>' +
+            '</template>' +
+            '<div v-if="isTyping" class="mb-3 flex gap-2">' +
+            '<img class="chat-avatar-logo rounded-md" src="./songhe-logo.png" alt="" />' +
+            '<div class="rounded-lg border border-slate-200/80 bg-white px-4 py-2.5 text-lg text-songhe-text-muted shadow-sm">{{ typingHint }}</div></div>' +
+            '<div ref="chatEndRef" class="chat-scroll-anchor h-px w-full shrink-0" aria-hidden="true"></div>' +
+            '</div>' +
+            '<div v-if="showPresets && entryFrom !== \'quick\'" class="shrink-0 border-t border-black/10 px-3 py-2" :class="entryFrom === \'guide\' ? \'bg-[#f2ede4]\' : \'bg-emerald-50/90\'">' +
+            '<p class="mb-1.5 text-sm font-medium" :class="entryFrom === \'guide\' ? \'text-amber-900/80\' : \'text-emerald-900/85\'">常见问题</p>' +
+            '<div class="flex flex-nowrap gap-2">' +
+            '<button v-for="p in presets" :key="p" type="button" class="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-2 py-2.5 text-center text-sm font-medium leading-snug text-songhe-primary active:bg-slate-50" @click="submitPreset(p)">{{ p }}</button>' +
+            '</div>' +
+            '</div>' +
+            '<div v-if="entryFrom === \'quick\' && showPosterBar" class="shrink-0 border-t border-emerald-200/70 bg-gradient-to-b from-emerald-50/95 to-white px-3 py-2.5 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">' +
+            '<p class="mb-1.5 text-center text-xs leading-relaxed text-songhe-text-muted">把这次聊到的要点做成海报，发到微信群，邻居朋友也能照着注意</p>' +
+            '<button type="button" class="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-songhe-primary px-4 text-base font-semibold text-white shadow-md shadow-songhe-primary/25 active:bg-songhe-primary-active" @click="openPosterStory"><span v-html="svg.share"></span>生成助教海报</button>' +
+            '</div>' +
+            '<div class="flex shrink-0 items-center gap-1.5 border-t border-black/10 px-2 py-2" :class="entryFrom === \'guide\' ? \'bg-[#f2ede4]\' : \'bg-[#f7f7f7]\'" style="padding-bottom:max(10px, env(safe-area-inset-bottom, 0px))">' +
+            '<div class="relative flex h-11 w-11 shrink-0 items-center justify-center">' +
+            '<template v-if="micActive">' +
+            '<span v-for="i in 3" :key="i" class="pointer-events-none absolute inset-0 mic-ripple-ring rounded-md border border-songhe-primary/40" :style="{ animationDelay: ((i-1)*0.55) + \'s\' }"></span>' +
+            '</template>' +
+            '<button type="button" class="relative z-10 flex h-11 w-11 items-center justify-center rounded-md bg-white text-songhe-primary shadow-sm active:bg-slate-100" aria-label="语音输入" @click="toggleMicDemo"><svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg></button></div>' +
+            '<label class="relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-md bg-white text-songhe-primary shadow-sm active:bg-slate-100" aria-label="上传照片或化验单">' +
+            '<input ref="fileInputRef" type="file" accept="image/*,.heic,.heif" class="absolute inset-0 z-20 block h-full min-h-[44px] w-full cursor-pointer opacity-0" @click="onFileInputClick" @change="onPhotoSelected" />' +
+            '<span class="pointer-events-none relative z-10 flex items-center justify-center" v-html="svg.image"></span></label>' +
+            '<div v-if="entryFrom === \'quick\'" class="flex min-h-[44px] min-w-0 flex-1 items-center rounded-md border border-dashed border-slate-300 bg-slate-50 px-3 text-base leading-snug text-songhe-text-muted">点话筒语音提问；需要时上传报告图片</div>' +
+            '<template v-else>' +
+            '<input v-model="inputText" type="text" enterkeyhint="send" class="min-h-[44px] min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 text-lg text-black focus:border-[#07c160] focus:outline-none focus:ring-1 focus:ring-[#07c160]" @keyup.enter="submitFromInput()" />' +
+            '<button type="button" class="shrink-0 rounded-md bg-[#07c160] px-4 py-2.5 text-lg font-medium text-white active:bg-[#06ad56]" @click.stop="submitFromInput">发送</button>' +
+            '</template>' +
+            '</div>' +
+            '<div v-if="voiceDemoPlaying" class="voice-demo-layer" @click.self="dismissVoiceDemo">' +
+            '<div class="relative w-full max-w-mobile rounded-t-3xl bg-white px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2 shadow-2xl sm:mb-0 sm:max-w-[280px] sm:rounded-2xl sm:pb-6" @click.stop>' +
+            '<button type="button" class="absolute right-2 top-2 flex h-10 w-10 items-center justify-center rounded-full text-songhe-text-muted active:bg-slate-100" aria-label="退出" @click="dismissVoiceDemo"><svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>' +
+            '<div class="mx-auto mt-8 flex h-16 w-16 items-center justify-center rounded-full bg-songhe-mint text-songhe-primary">' +
+            '<svg class="h-9 w-9" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></div>' +
+            '<div class="mt-8 flex h-16 items-end justify-center gap-1 pb-8">' +
+            '<span class="voice-wave-bar"></span><span class="voice-wave-bar"></span><span class="voice-wave-bar"></span><span class="voice-wave-bar"></span><span class="voice-wave-bar"></span><span class="voice-wave-bar"></span><span class="voice-wave-bar"></span>' +
+            '</div>' +
+            '</div></div>' +
+            '<teleport to="#risk-safety-root">' +
+            '<div v-if="riskSafetyOpen" class="risk-safety-layer" role="alertdialog" aria-modal="true" aria-labelledby="risk-safety-title">' +
+            '<div class="risk-safety-card">' +
+            '<div class="risk-safety-badge" aria-hidden="true">!</div>' +
+            '<h1 id="risk-safety-title" class="risk-safety-h1">需要先请医生当面看一看</h1>' +
+            '<p class="risk-safety-lead">您刚才说的内容，<strong>不适合只靠手机线上问</strong>。请先静下来，<strong>尽快让医生或急救人员判断</strong>；有家人在身边，心里更踏实。</p>' +
+            '<p class="risk-safety-calm">很多情况只要<strong>早点处理</strong>就会安心很多，不必自己吓自己。请先把下面几步做到位。</p>' +
+            '<p class="risk-safety-steps-title">建议您现在可以这样做：</p>' +
+            '<ol class="risk-safety-steps">' +
+            '<li><strong>先休息：</strong>不要硬撑，少走动，尽量坐着或半躺。</li>' +
+            '<li><strong>拨打 120 或去急诊：</strong>心里没底时，宁可多问一句。</li>' +
+            '<li><strong>告诉家人：</strong>让家里人知道您在哪、哪里不舒服。</li>' +
+            '</ol>' +
+            '<div v-if="riskSafetySource" class="risk-safety-quote">' +
+            '<span class="risk-safety-quote-label">您刚才输入的内容（便于核对）：</span>' +
+            '{{ riskSafetySource }}' +
+            '</div>' +
+            '<div class="risk-safety-actions">' +
+            '<button type="button" class="risk-safety-btn-120" @click="call120"><span v-html="svg.phone"></span>拨打 120</button>' +
+            '<button type="button" class="risk-safety-btn-secondary" @click="callEmergencyContact"><span v-html="svg.user"></span>联系家人或邻居</button>' +
+            '<button type="button" class="risk-safety-btn-secondary" style="border-color:#059669;color:#047857" @click="playVoiceDemo"><span v-html="svg.volume"></span>听一遍这几句提醒</button>' +
+            '<button type="button" class="risk-safety-btn-ghost" @click="dismissRiskSafetyPage">我已了解，回到对话里</button>' +
+            '</div>' +
+            '<p class="risk-safety-foot">回到对话后，仍以医院和急救为准；若更不舒服，请马上再拨 120。</p>' +
+            '</div></div>' +
+            '</teleport>' +
+            '<teleport to="#poster-root">' +
+            '<div v-if="posterStoryOpen" class="poster-layer-inner poster-page-bg text-stone-900" style="padding-top:max(0px, env(safe-area-inset-top, 0px))">' +
+            '<header class="poster-bar-solid flex shrink-0 items-center border-b border-amber-200/70 px-1 py-2">' +
+            '<button type="button" class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-stone-600 active:bg-black/5" aria-label="返回" @click="dismissPosterStory"><svg class="h-7 w-7" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m15 18-6-6 6-6"/></svg></button>' +
+            '<h1 class="min-w-0 flex-1 truncate text-center text-[17px] font-semibold text-stone-800">分享给身边朋友</h1>' +
+            '<div class="flex h-11 w-11 shrink-0 items-center justify-end gap-0.5 pr-1 text-stone-500">' +
+            '<span class="text-lg leading-none tracking-tighter">⋯</span>' +
+            '<span class="ml-0.5 inline-block h-4 w-4 rounded-full border-2 border-stone-400"></span>' +
+            '</div>' +
+            '</header>' +
+            '<div class="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-5">' +
+            '<div v-if="posterGenerating" class="flex min-h-[45vh] flex-col items-center justify-center gap-5">' +
+            '<div class="h-14 w-14 animate-pulse rounded-full bg-amber-300/50"></div>' +
+            '<p class="max-w-[15rem] text-center text-base leading-relaxed text-stone-600">正在生成海报…</p>' +
+            '</div>' +
+            '<div v-else class="mx-auto flex w-full max-w-[20rem] flex-col">' +
+            '<div class="overflow-hidden rounded-[1.35rem] border-[3px] border-amber-400/90 bg-[#fffdf9] shadow-md shadow-amber-900/10">' +
+            '<div class="poster-illus-bg flex justify-center px-4 pb-3 pt-5">' +
+            '<img class="poster-logo-img" src="./songhe-logo.png" alt="松鹤·智语 银发群体适老化AI健康咨询辅助平台" />' +
+            '</div>' +
+            '<div class="px-4 pb-4 pt-1">' +
+            '<p class="text-center text-[1.15rem] font-bold leading-snug text-amber-950">{{ posterHeadline }}</p>' +
+            '<div class="mt-4 rounded-2xl bg-[#f3e9dc] px-3.5 py-3.5 text-[15px] leading-relaxed text-stone-800">' +
+            '{{ posterSummary }}' +
+            '</div>' +
+            '<p class="mt-4 text-center text-sm leading-relaxed text-amber-900/85">{{ posterTip }}</p>' +
+            '</div></div>' +
+            '</div></div>' +
+            '<footer class="poster-bar-solid shrink-0 border-t border-amber-200/60 px-4 pt-3" style="padding-bottom:max(12px, env(safe-area-inset-bottom, 0px))">' +
+            '<div class="poster-footer-btns">' +
+            '<button type="button" class="poster-btn-save flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-2xl text-[16px] font-semibold shadow-sm" @click="savePosterImageDemo">' +
+            '<svg class="h-5 w-5 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>' +
+            '保存图片</button>' +
+            '<button type="button" class="poster-share-btn flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-2xl text-[16px] font-semibold shadow-sm" style="background-color:#7dd3fc;color:#fff;border:0" @click="sharePosterCard">' +
+            '<svg class="h-5 w-5 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" x2="12" y1="2" y2="15"/></svg>' +
+            '分享给朋友</button>' +
+            '</div></footer>' +
+            '</div>' +
+            '</teleport>' +
+            '</main>',
+        };
+
+        const SONGHE_ONBOARDING_KEY = 'songhe_onboarding_v1';
+
+        const App = {
+          setup() {
+            const route = useRoute();
+            const router = useRouter();
+            const onboardingOpen = ref(false);
+            const obStep = ref(0);
+            const obToast = ref('');
+            const micPressed = ref(false);
+            var obToastTimer = null;
+            var obMicHoldTimer = null;
+            var obMicCooldown = false;
+
+            var OB_TOAST_MS = 1000;
+
+            function showObToast(msg) {
+              if (obToastTimer) clearTimeout(obToastTimer);
+              obToastTimer = null;
+              obToast.value = '';
+              nextTick(function () {
+                obToast.value = msg;
+                obToastTimer = setTimeout(function () {
+                  obToast.value = '';
+                  obToastTimer = null;
+                }, OB_TOAST_MS);
+              });
+            }
+
+            function setOnboardingAriaAndScroll(open) {
+              var root = document.getElementById('onboarding-root');
+              if (root) root.setAttribute('aria-hidden', open ? 'false' : 'true');
+              try {
+                document.documentElement.classList.toggle('poster-scroll-lock', !!open);
+                document.body.classList.toggle('poster-scroll-lock', !!open);
+              } catch (e) {}
+            }
+
+            function onObBackdrop() {
+              showObToast('别担心，这里是练习区，怎么点都不怕');
+            }
+
+            function onObCardEmpty() {
+              showObToast('别担心，这里是练习区，怎么点都不怕');
+            }
+
+            function doCalibrate() {
+              if (obStep.value !== 0) return;
+              showObToast('语音已适配，声音很清晰哦 ✓');
+              setTimeout(function () {
+                obStep.value = 1;
+              }, 1400);
+            }
+
+            function obMicCompleteStep() {
+              if (obMicCooldown) return;
+              if (obStep.value === 1) {
+                obMicCooldown = true;
+                showObToast('很棒，我们已经认识啦');
+                setTimeout(function () {
+                  obStep.value = 2;
+                  obMicCooldown = false;
+                }, 1500);
+              } else if (obStep.value === 2) {
+                obMicCooldown = true;
+                showObToast('太厉害啦，这样说就可以咨询啦');
+                setTimeout(function () {
+                  obStep.value = 3;
+                  obMicCooldown = false;
+                }, 1500);
+              }
+            }
+
+            function obMicPointerDown() {
+              if (obStep.value !== 1 && obStep.value !== 2) return;
+              micPressed.value = true;
+              if (obMicHoldTimer) clearTimeout(obMicHoldTimer);
+              obMicHoldTimer = setTimeout(function () {
+                obMicHoldTimer = null;
+                micPressed.value = false;
+                obMicCompleteStep();
+              }, 420);
+            }
+
+            function obMicPointerUp() {
+              micPressed.value = false;
+              if (obMicHoldTimer) {
+                clearTimeout(obMicHoldTimer);
+                obMicHoldTimer = null;
+              }
+            }
+
+            function obMicTap() {
+              if (obStep.value !== 1 && obStep.value !== 2) return;
+              obMicCompleteStep();
+            }
+
+            function completeTask3() {
+              if (obStep.value !== 3) return;
+              showObToast('安全提示已确认，更放心啦');
+              setTimeout(function () {
+                obStep.value = 4;
+              }, 1400);
+            }
+
+            function finishOnboarding() {
+              try {
+                localStorage.setItem(SONGHE_ONBOARDING_KEY, '1');
+              } catch (e) {}
+              onboardingOpen.value = false;
+              setOnboardingAriaAndScroll(false);
+              chatStore.reset();
+              router.push({ path: '/chat', query: { from: 'quick' } });
+            }
+
+            function skipOnboarding() {
+              try {
+                localStorage.setItem(SONGHE_ONBOARDING_KEY, '1');
+              } catch (e) {}
+              onboardingOpen.value = false;
+              setOnboardingAriaAndScroll(false);
+              chatStore.reset();
+              router.push({ path: '/chat', query: { from: 'quick' } });
+            }
+
+            onMounted(function () {
+              setOnboardingAriaAndScroll(false);
+              window.songheReopenOnboarding = function () {
+                obStep.value = 0;
+                obToast.value = '';
+                onboardingOpen.value = true;
+                setOnboardingAriaAndScroll(true);
+              };
+            });
+
+            onUnmounted(function () {
+              setOnboardingAriaAndScroll(false);
+              try {
+                delete window.songheReopenOnboarding;
+              } catch (e) {
+                window.songheReopenOnboarding = undefined;
+              }
+            });
+
+            watch(onboardingOpen, function (v) {
+              setOnboardingAriaAndScroll(!!v);
+            });
+
+            return {
+              route,
+              onboardingOpen,
+              obStep,
+              obToast,
+              micPressed,
+              onObBackdrop,
+              onObCardEmpty,
+              doCalibrate,
+              obMicPointerDown,
+              obMicPointerUp,
+              obMicTap,
+              completeTask3,
+              finishOnboarding,
+              skipOnboarding,
+            };
+          },
+          template:
+            '<teleport to="#onboarding-root">' +
+            '<div v-if="onboardingOpen" class="onboarding-shell" @click.self="onObBackdrop">' +
+            '<div class="onboarding-card" @click.self="onObCardEmpty">' +
+            '<template v-if="obStep === 0">' +
+            '<p class="onboarding-title">别着急，慢慢说，我们一步一步来</p>' +
+            '<p class="onboarding-tagline">先玩再问，零负担入门</p>' +
+            '<p class="onboarding-p">说一句话就能开始。这里是<strong>练习区</strong>，没有真实问诊，怎么点都不怕。</p>' +
+            '<div class="onboarding-box">' +
+            '<p class="onboarding-box-warn"><strong>能帮您：</strong>聊聊不舒服、看懂检查单怎么说、日常保健小知识。<br /><strong>不能代替：</strong>医生当面看病、开药、急救。</p>' +
+            '</div>' +
+            '<p class="onboarding-p" style="font-size:0.98rem;color:#57534e">胸口疼、喘不上气、突然说不出话等紧急情况，要快找医生或打 120，并告诉家人。</p>' +
+            '<div class="onboarding-mic-wrap">' +
+            '<p class="onboarding-arrow-hint" aria-hidden="true">↓</p>' +
+            '<button type="button" class="onboarding-mic-btn" @click="doCalibrate">' +
+            '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="23"/></svg>' +
+            '点这里试着说一句</button>' +
+            '</div>' +
+            '<p class="onboarding-p" style="font-size:0.95rem;margin-top:0.35rem">跟着念：<strong>你好，松鹤</strong></p>' +
+            '<p class="onboarding-p" style="font-size:0.88rem;color:#78716e">旁边空白处点一下也没关系，都是练习。</p>' +
+            '</template>' +
+            '<template v-else-if="obStep === 1">' +
+            '<p class="onboarding-progress">第 1 步 · 共 3 步</p>' +
+            '<p class="onboarding-title">先打个招呼吧</p>' +
+            '<p class="onboarding-p">试着说一句：<strong>你好</strong></p>' +
+            '<div class="onboarding-mic-wrap">' +
+            '<p class="onboarding-arrow-hint" aria-hidden="true">↓</p>' +
+            '<button type="button" class="onboarding-mic-btn" :class="{ \'ob-mic-down\': micPressed }" @pointerdown="obMicPointerDown" @pointerup="obMicPointerUp" @pointerleave="obMicPointerUp" @click="obMicTap">' +
+            '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="23"/></svg>' +
+            '按住说问题</button>' +
+            '</div>' +
+            '<p class="onboarding-p" style="font-size:0.9rem;color:#78716e">轻点一下也可以完成练习。</p>' +
+            '</template>' +
+            '<template v-else-if="obStep === 2">' +
+            '<p class="onboarding-progress">第 2 步 · 共 3 步</p>' +
+            '<p class="onboarding-title">假装说一下哪里不舒服</p>' +
+            '<p class="onboarding-p">可以跟着说：<strong>最近有点累</strong></p>' +
+            '<div class="onboarding-mic-wrap">' +
+            '<p class="onboarding-arrow-hint" aria-hidden="true">↓</p>' +
+            '<button type="button" class="onboarding-mic-btn" :class="{ \'ob-mic-down\': micPressed }" @pointerdown="obMicPointerDown" @pointerup="obMicPointerUp" @pointerleave="obMicPointerUp" @click="obMicTap">' +
+            '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="23"/></svg>' +
+            '按住说问题</button>' +
+            '</div>' +
+            '<p class="onboarding-p" style="font-size:0.9rem;color:#78716e">这是练习，真用时就这样说一句就行。</p>' +
+            '</template>' +
+            '<template v-else-if="obStep === 3">' +
+            '<p class="onboarding-progress">第 3 步 · 共 3 步</p>' +
+            '<p class="onboarding-title">最后确认一下安全提示</p>' +
+            '<div class="onboarding-box">' +
+            '<p class="onboarding-box-warn">急病急痛不要只靠手机问，要尽快找医生或联系家人。</p>' +
+            '</div>' +
+            '<button type="button" class="onboarding-btn-secondary" @click="completeTask3">我知道紧急情况要找医生或家人</button>' +
+            '</template>' +
+            '<template v-else-if="obStep === 4">' +
+            '<div class="onboarding-grad-wrap">' +
+            '<div class="onboarding-grad-badge" aria-hidden="true">🎓</div>' +
+            '<p class="onboarding-title">恭喜毕业，开始健康之旅</p>' +
+            '<p class="onboarding-p">您已经会打招呼、会描述不舒服，也记住了安全提醒。</p>' +
+            '<button type="button" class="onboarding-btn-start" @click="finishOnboarding">我准备好了，开始提问</button>' +
+            '</div>' +
+            '</template>' +
+            '<div v-if="obToast" class="onboarding-inline-feedback" role="status">{{ obToast }}</div>' +
+            '<button v-if="obStep < 4" type="button" class="onboarding-skip" @click="skipOnboarding">暂时跳过练习</button>' +
+            '</div>' +
+            '</div>' +
+            '</teleport>' +
+            '<div class="flex h-[100dvh] max-h-[100dvh] w-full justify-center overflow-hidden">' +
+            '<div class="flex h-full max-h-full w-full max-w-mobile flex-col overflow-hidden bg-songhe-surface shadow-xl shadow-slate-300/50 sm:my-3 sm:max-h-[calc(100dvh-1.5rem)] sm:rounded-[2rem] sm:ring-[10px] sm:ring-slate-800/90" ' +
+            ':style="{ paddingTop: \'max(0px, env(safe-area-inset-top, 0px))\' }">' +
+            '<div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">' +
+            '<router-view v-slot="{ Component }">' +
+            '<transition name="page" mode="out-in">' +
+            '<component :is="Component" :key="route.fullPath" />' +
+            '</transition></router-view></div></div></div>',
+        };
+
+        const router = createRouter({
+          history: createWebHashHistory(),
+          routes: [
+            { path: '/', component: Home, meta: { title: '松鹤·智语' } },
+            { path: '/chat', component: Chat, meta: { title: '松鹤·智语 · 咨询' } },
+          ],
+        });
+
+        router.afterEach(function (to) {
+          document.title = (to.meta && to.meta.title) ? to.meta.title : '松鹤·智语';
+        });
+
+        createApp(App).use(router).mount('#app');
+      })();
+    </script>
+  </body>
+</html>

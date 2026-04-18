@@ -1,0 +1,8 @@
+【当前线上地址（复制到手机浏览器打开）】
+https://songhe-online.vercel.app
+
+若提示「不是私密连接」或打不开，多半是当地网络对境外站点拦截。
+请用电脑打开 https://app.netlify.com/drop ，把桌面上的 songhe-online-deploy.zip 拖进去，
+几秒后会得到一个新的 https://xxxx.netlify.app 链接，把这个新链接发到微信里，手机即可打开。
+
+（部署包可用 songhe-online 目录里的「打包为zip-用于网页拖拽上传.ps1」重新生成。）
